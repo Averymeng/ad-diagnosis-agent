@@ -294,6 +294,13 @@ def api_base(db_path, params):
     return out
 
 
+def api_snapshot(db_path):
+    """实时从数据库构建看板快照（替代静态 snapshot.json），供前端客户经营页直接读取。
+    与 static_export.build_snapshot 同构；延迟导入避免与 static_export 的循环依赖。"""
+    import static_export
+    return static_export.build_snapshot(db_path)
+
+
 # ---------------------------------------------------------------- 报告独立 HTML 渲染
 def _num(v):
     if isinstance(v, bool):
@@ -732,6 +739,8 @@ class Handler(BaseHTTPRequestHandler):
                     self._send_json(api_compare(self.db_path, params))
                 elif path == "/api/cases":
                     self._send_json(api_cases(self.db_path, params))
+                elif path == "/api/snapshot":
+                    self._send_json(api_snapshot(self.db_path))
                 else:
                     self._send_json({"error": f"unknown api: {path}"}, 404)
             except Exception as e:

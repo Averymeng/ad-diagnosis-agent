@@ -243,7 +243,23 @@ class ReviewOrchestrator:
                      "expect_metric": "数据完整性检查通过，复盘报告恢复归因与建议章节"}]
             self.context["llm_top3_detail"] = []
             s5 = self._step("drill_down", "skipped", output_summary="数据不足分支：跳过下钻")
-            s6 = self._step("case_retrieval", "skipped", output_summary="数据不足分支：跳过案例比较")
+            # 数据不足分支仍保留"同赛道历史打法"参考：案例属行业经验参考，非归因结论，不违反红线
+            s6 = self._step("case_retrieval", "running")
+            _prof = self.context.get("profile") or {}
+            _cases = self._call(s6, "search_cases", industry=_prof.get("industry"),
+                                sector=_prof.get("sector"), signature_terms=[])
+            self.context["cases"] = _cases
+            if _cases.get("cases"):
+                _crefs = [{"case_id": c["id"], "industry": c.get("industry"), "sector": c.get("sector"),
+                           "anomaly_signature": c.get("anomaly_signature"),
+                           "action_taken": c.get("action_taken"), "result_after": c.get("result_after"),
+                           "similarity_points": "", "key_differences": "", "adopted": 1}
+                          for c in _cases["cases"]]
+                self.context["case_refs"] = _crefs
+                self._step("case_retrieval", "done",
+                           output_summary={"n": len(_crefs), "degraded": True})
+            else:
+                self._step("case_retrieval", "skipped", output_summary="无同赛道可引用案例")
             s7 = self._step("suggest", "skipped",
                             output_summary="数据不足分支：" + ("投放已停止→建议确认原因" if stopped else "建议仅限补数据"))
             report = self._finish()

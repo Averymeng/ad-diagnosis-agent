@@ -316,6 +316,11 @@ function wbSelect(id) {
 
 async function ensureSnap() {
   if (SNAP) return SNAP;
+  // 优先读后端实时快照（手动录入/生成报告后即时生效）；失败则回退静态文件
+  try {
+    const res = await fetch("/api/snapshot");
+    if (res.ok) { SNAP = await res.json(); return SNAP; }
+  } catch (e) {}
   try { SNAP = await fetch("./snapshot.json").then(r => r.json()); } catch (e) {}
   return SNAP;
 }
