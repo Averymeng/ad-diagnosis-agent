@@ -17,6 +17,10 @@
       <div class="nav-item active" data-view="list" onclick="showView('list')"><span class="ico">📅</span>客户详情</div>
       <div class="nav-item" data-view="ingest" onclick="showView('ingest')"><span class="ico">➕</span>手动录入</div>
     </div>
+    <div class="nav-group">
+      <div class="nav-title">销售</div>
+      <div class="nav-item" data-view="workbench" onclick="showView('workbench')"><span class="ico">🎯</span>销售工作台</div>
+    </div>
   </div>
 
   <div class="main">
@@ -123,6 +127,9 @@
         </div>
       </div>
 
+      <!-- 销售工作台（只读分析层） -->
+      <div class="view" id="workbenchView"></div>
+
     </div>
   </div>
 </div>
@@ -152,5 +159,6 @@
 </div>
 
 <script src="app.js"></script>
+<script src="workbench.js"></script>
 </body>
 </html>
