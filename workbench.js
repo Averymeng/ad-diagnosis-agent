@@ -169,7 +169,7 @@ function renderWorkbench() {
   const selOpts = rows.map(r => '<option value="' + r.c.id + '">' + esc(r.c.name) + "（" + esc(r.c.sector) + "）</option>").join("");
 
   let h = "";
-  h += '<div class="wb-head"><h2>客户经营</h2><span class="wb-sub">销售工作台 · 客户经营看板（只读分析）</span></div>';
+  h += '<div class="wb-head"><h2>客户经营</h2></div>';
 
   // KPI 卡
   h += '<div class="wb-kpis">';
@@ -185,20 +185,6 @@ function renderWorkbench() {
   h += '<div class="card"><h3 class="wb-h3">客户分群分布</h3>' + wbTierBar(healthyN, watchN, warnN, rows.length) + "</div>";
   h += '<div class="card"><h3 class="wb-h3">评分逻辑（可解释）</h3>' +
        '<p class="wb-note">满分 100：① 消耗动能（近 7 天 vs 前 7 天，下滑扣分上限 25）② 指标变化惩罚（上限 35）③ 状态修正（需关注 −10 / 需行动 −22）④ 异常惩罚（上限 10）。≥80 健康，60–79 关注，<60 预警。</p></div>';
-  h += "</div>";
-
-  // 预警列表
-  h += '<div class="card" style="margin-top:14px;"><h3 class="wb-h3">风险预警（' + warns.length + "）</h3>";
-  if (!warns.length) h += '<p class="wb-note">当前无客户触发预警。</p>';
-  else {
-    h += '<div class="wb-warnlist">';
-    warns.forEach(r => {
-      h += '<div class="wb-warnitem" onclick="wbSelect(' + r.c.id + ')">' +
-           '<div class="wb-wl-left">' + wbHealthBadge(r.h.score, r.h.tier) + "<b>" + esc(r.c.name) + "</b><span class='wb-tag'>" + esc(r.c.sector) + "</span></div>" +
-           '<div class="wb-wl-right">' + r.h.warnings.map(w => "<span class='wb-chip'>" + esc(w) + "</span>").join("") + "</div></div>";
-    });
-    h += "</div>";
-  }
   h += "</div>";
 
   // 客户分群概览（3 卡，不列名单，点开才展开该群客户）

@@ -3,23 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>诊断台 · 投放监控与复盘</title>
+<title>广告销售工作台</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div class="app">
   <div class="sidebar">
-    <div class="brand"><span class="dot"></span>诊断台</div>
+    <div class="brand"><span class="dot"></span>广告销售工作台</div>
     <div class="nav-group">
-      <div class="nav-title">Main</div>
+      <div class="nav-item" data-view="workbench" onclick="showView('workbench')"><span class="ico">🎯</span>客户经营</div>
       <div class="nav-item" data-view="overview" onclick="showView('overview')"><span class="ico">📊</span>当日监控</div>
       <div class="nav-item active" data-view="list" onclick="showView('list')"><span class="ico">📅</span>客户详情</div>
       <div class="nav-item" data-view="ingest" onclick="showView('ingest')"><span class="ico">➕</span>手动录入</div>
-    </div>
-    <div class="nav-group">
-      <div class="nav-title">销售</div>
-      <div class="nav-item" data-view="workbench" onclick="showView('workbench')"><span class="ico">🎯</span>客户经营</div>
     </div>
   </div>
 
