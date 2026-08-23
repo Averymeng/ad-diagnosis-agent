@@ -370,6 +370,37 @@ def _trend_svg(t, mname):
             f"{xt}</svg></div>")
 
 
+def _clean_anomaly(sig):
+    """anomaly_signature 可能是 dict 或字符串。统一提取可读的 location+reason."""
+    if sig is None:
+        return ""
+    if isinstance(sig, dict):
+        loc = sig.get("location", "")
+        reason = sig.get("reason", "")
+        return f"{loc}：{reason}" if loc or reason else json.dumps(sig, ensure_ascii=False)
+    s = str(sig).strip()
+    if s.startswith("{") and ("'" in s or '"' in s):
+        try:
+            d = eval(s, {"__builtins__": {}}, {})
+            if isinstance(d, dict):
+                loc = d.get("location", "")
+                reason = d.get("reason", "")
+                if loc or reason:
+                    return f"{loc}：{reason}"
+        except Exception:
+            pass
+        # 退路：截断/畸形字典串，用正则抽 location / reason
+        import re
+        ml = re.search(r"['\"]location['\"]\s*:\s*['\"]([^'\"]*)", s)
+        mr = re.search(r"['\"]reason['\"]\s*:\s*['\"]([^'\"]*)", s)
+        if ml or mr:
+            loc = ml.group(1) if ml else ""
+            reason = mr.group(1) if mr else ""
+            if loc or reason:
+                return f"{loc}：{reason}"
+    return s
+
+
 def render_report_html(report):
     """把八章节报告 JSON 渲染为自包含 HTML（分享链接落盘文件）"""
     ch = report.get("chapters", {})
@@ -414,9 +445,33 @@ def render_report_html(report):
     else:
         anom_html = ""
 
-    case_html = ""
-    if cases.get("cases"):
-        case_html = "".join(f"<div class='item'>{esc(tools.norm_report_text(str(c)))}</div>" for c in cases["cases"])
+    case_refs = cases.get("refs") or cases.get("cases") or []
+    _PH = ("（待补", "待 LLM", "审核时补充", "{}", "[]")
+
+    def _ph(s):
+        s = "" if s is None else str(s).strip()
+        return (s == "" or s in ("{}", "[]") or any(p in s for p in _PH))
+
+    if case_refs:
+        parts = []
+        for c in case_refs:
+            sig = _clean_anomaly(c.get("anomaly_signature", ""))
+            act = "" if _ph(c.get("action_taken")) else tools.norm_report_text(c.get("action_taken", ""))
+            sim = "" if _ph(c.get("similarity_points")) else tools.norm_report_text(c.get("similarity_points", ""))
+            if len(sim) > 220:
+                sim = sim[:220] + "…"
+            line = f"<div class='item'><b>案例 #{esc(c.get('case_id'))}</b>"
+            if c.get("sector"):
+                line += f" <span class='tag'>{esc(c.get('sector'))}</span>"
+            if sig:
+                line += f"<p>异常：{esc(sig)}</p>"
+            if act:
+                line += f"<p>打法：{esc(act)}</p>"
+            if sim:
+                line += f"<p class='muted'>相似点：{esc(sim)}</p>"
+            line += "</div>"
+            parts.append(line)
+        case_html = "".join(parts)
     else:
         case_html = f"<p class='muted'>{esc(cases.get('note', '暂无可引用案例'))}</p>"
 
