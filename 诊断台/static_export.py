@@ -89,6 +89,28 @@ def main():
                 reports[str(cid)] = json.loads(r["report_json"])
             except Exception:
                 pass
+
+        # 7) 案例库（只读，供销售工作台打法匹配；不含任何写入）
+        cases = []
+        for c in conn.execute(
+            """SELECT dc.id, dc.anomaly_signature, dc.action_taken, dc.result_after,
+                      dc.referenceable, dc.status, dc.optimize_target,
+                      i.name AS industry, s.name AS sector
+               FROM diag_case dc
+               LEFT JOIN industry i ON i.id=dc.industry_id
+               LEFT JOIN sector s ON s.id=dc.sector_id"""
+        ).fetchall():
+            cases.append({
+                "id": c["id"],
+                "sector": c["sector"],
+                "industry": c["industry"],
+                "anomaly_signature": c["anomaly_signature"],
+                "action_taken": c["action_taken"],
+                "result_after": c["result_after"],
+                "referenceable": c["referenceable"],
+                "status": c["status"],
+                "optimize_target": c["optimize_target"],
+            })
     finally:
         conn.close()
 
@@ -103,13 +125,14 @@ def main():
         "attrib": attrib,
         "base": base,
         "reports": reports,
+        "cases": cases,
     }
     with open(OUT, "w", encoding="utf-8") as f:
         json.dump(snap, f, ensure_ascii=False)
     print("已导出", OUT)
     print(
-        "  客户 %d 个 · 日度序列 %d 个客户 · 归因 %d 条 · 报告 %d 份"
-        % (len(customers), len(daily), len(attrib), len(reports))
+        "  客户 %d 个 · 日度序列 %d 个客户 · 归因 %d 条 · 报告 %d 份 · 案例 %d 条"
+        % (len(customers), len(daily), len(attrib), len(reports), len(cases))
     )
 
 
