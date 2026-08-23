@@ -162,7 +162,7 @@ function renderWorkbench() {
   const coveredSectors = new Set(cases.filter(x => x.referenceable).map(x => x.sector));
   const coverN = [...sectors].filter(s => coveredSectors.has(s)).length;
 
-  // 预警列表（仅预警档，按分数升序，作为全站唯一重点区）
+  // 预警客户（用于默认选中）
   const warns = rows.filter(r => r.h.tier === "预警").sort((a, b) => (a.h.score || 999) - (b.h.score || 999));
 
   // 客户下拉（打法推荐）
