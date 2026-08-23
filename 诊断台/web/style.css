@@ -214,7 +214,7 @@ body{background:var(--bg);color:var(--ink);font-size:13px;line-height:1.5;}
 .ing-row input::placeholder{color:#9AA5B5;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ingest-res{font-family:Menlo,Consolas,monospace;font-size:11px;background:var(--bg);border-radius:8px;padding:10px;white-space:pre-wrap;display:none;}
 
-/* ===== 销售工作台 ===== */
+/* ===== 客户经营（销售工作台子模块） ===== */
 .wb-head{display:flex;align-items:baseline;gap:10px;margin-bottom:14px;}
 .wb-head h2{font-size:18px;font-weight:800;margin:0;}
 .wb-sub{font-size:12px;color:var(--sub);}
@@ -257,3 +257,17 @@ body{background:var(--bg);color:var(--ink);font-size:13px;line-height:1.5;}
 .wb-match-res{font-size:11px;color:var(--sub);margin-top:4px;}
 .wb-ok{color:#32D583;font-weight:800;}
 .wb-no{color:#94A3B8;}
+.wb-tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.wb-tier{border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center;cursor:pointer;transition:.15s;background:var(--card);}
+.wb-tier:hover{border-color:var(--blue);transform:translateY(-2px);}
+.wb-tier-n{font-size:32px;font-weight:800;line-height:1;}
+.wb-tier-l{font-size:13px;font-weight:800;margin-top:6px;}
+.wb-tier-sub{font-size:11px;color:var(--sub);margin-top:6px;}
+.wb-tier-more{font-size:11px;color:var(--blue);margin-top:8px;}
+.wb-expand{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line);}
+.wb-expand>b{font-size:12px;color:var(--sub);}
+.wb-explist{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+.wb-expri{font-size:12px;border:1px solid var(--line);border-radius:8px;padding:5px 10px;cursor:pointer;transition:.15s;}
+.wb-expri:hover{border-color:var(--blue);background:var(--bg);}
+.wb-expri i{font-style:normal;color:var(--sub);margin-left:5px;}
+.wb-gaps{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12px;color:var(--sub);}

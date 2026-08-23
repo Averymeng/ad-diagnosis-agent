@@ -132,7 +132,7 @@ function showView(v){
   ['overview','list','detail','ingest','workbench'].forEach(id=>{const el=document.getElementById(id+'View'); if(el) el.classList.remove('on');});
   const vw=document.getElementById(v+'View'); if(vw) vw.classList.add('on');
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===v));
-  const titles={overview:'当日监控',list:'客户详情',ingest:'手动录入',workbench:'销售工作台'};
+  const titles={overview:'当日监控',list:'客户详情',ingest:'手动录入',workbench:'客户经营'};
   document.getElementById('pageTitle').innerText=titles[v]||'';
   document.getElementById('topRight').style.display=(v==='ingest'||v==='workbench')?'none':'flex';
   if(v==='overview') renderOverview();
