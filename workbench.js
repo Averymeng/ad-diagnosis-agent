@@ -199,7 +199,7 @@ function renderWorkbench() {
        '<div class="wb-selrow"><label>选择客户：</label><select id="wbCustSel" onchange="wbSelect(parseInt(this.value))">' + selOpts + "</select></div>" +
        '<div id="wbPlaybook"></div></div>';
 
-  // 覆盖度自检（按赛道汇总，仅列缺口客户，不堆 51 个名字）
+  // 覆盖度自检（压缩：一行摘要 + 缺口客户小标签，去掉占空间的逐赛道大表）
   const cov = buildCoverage(rows, cases);
   const gaps = cov.filter(x => x.gap);
   const secCov = {};
@@ -210,16 +210,14 @@ function renderWorkbench() {
     if (r.rep) secCov[s].rep++;
     if (coveredSectors.has(s)) secCov[s].cas++;
   });
-  h += '<div class="card" style="margin-top:14px;"><h3 class="wb-h3">覆盖度自检（' + gaps.length + " 个缺口）</h3>" +
-       '<p class="wb-note">诊断覆盖=已生成报告；案例覆盖=该赛道在案例库有可引用打法。按赛道汇总如下，缺口客户单独列出。</p>' +
-       '<div class="table-wrap"><table class="daily"><thead><tr><th>赛道</th><th>客户数</th><th>已诊断</th><th>有案例覆盖</th></tr></thead><tbody>';
-  Object.keys(secCov).sort().forEach(s => {
-    const d = secCov[s];
-    h += "<tr><td>" + esc(s) + "</td><td>" + d.n + "</td><td>" + wbTick(d.n === d.rep) + " " + d.rep + "/" + d.n + "</td><td>" + wbTick(d.cas > 0) + " " + (d.cas > 0 ? "有" : "无") + "</td></tr>";
-  });
-  h += "</tbody></table></div>";
+  const repN = rows.filter(r => r.rep).length;
+  const covSec = Object.keys(secCov).filter(s => secCov[s].cas > 0).length;
+  const totalSec = Object.keys(secCov).length;
+  h += '<div class="wb-cov" style="margin-top:14px;">' +
+       '<div class="wb-cov-head"><span class="wb-cov-dot"></span>覆盖度自检' +
+       '<span class="wb-cov-sum">诊断 ' + repN + '/' + rows.length + ' · 案例覆盖赛道 ' + covSec + '/' + totalSec + ' · 缺口 ' + gaps.length + '</span></div>';
   if (gaps.length) {
-    h += '<div class="wb-gaps"><b>缺口客户：</b>' + gaps.map(x => "<span class='wb-chip wb-chip-bad'>" + esc(x.c.name) + " · " + (x.hasReport ? "缺案例覆盖" : "缺诊断") + "</span>").join(" ") + "</div>";
+    h += '<div class="wb-gaps">' + gaps.map(x => "<span class='wb-chip wb-chip-bad'>" + esc(x.c.name) + " · " + (x.hasReport ? "缺案例" : "缺诊断") + "</span>").join(" ") + "</div>";
   }
   h += "</div>";
 
@@ -270,6 +268,10 @@ function wbTierBar(h, w, warn, total) {
 }
 function wbTick(b) { return b ? '<span class="wb-ok">✓</span>' : '<span class="wb-no">—</span>'; }
 
+function splitPoints(text) {
+  return String(text || "").split(/[；;。\n]+/).map(s => s.trim()).filter(Boolean);
+}
+
 function wbSelect(id) {
   const sel = document.getElementById("wbCustSel");
   if (sel) sel.value = String(id);
@@ -290,10 +292,19 @@ function wbSelect(id) {
   if (matched.length) {
     h += '<div class="wb-matched"><h4>同赛道历史打法（案例库）</h4>';
     matched.forEach(m => {
-      h += '<div class="wb-match"><span class="wb-match-id">案例 #' + m.id + "</span>" +
-           (m.anomaly_signature ? '<span class="wb-match-sig">' + esc(cleanAnomalySig(m.anomaly_signature)) + "</span>" : "") +
-           '<div class="wb-match-act">' + esc(m.action_taken || "") + "</div>" +
-           (m.result_after ? '<div class="wb-match-res">结果：' + esc(m.result_after) + "</div>" : "") + "</div>";
+      const pts = splitPoints(m.action_taken || "");
+      const sig = m.anomaly_signature ? cleanAnomalySig(m.anomaly_signature) : "";
+      h += '<div class="wb-match">';
+      h += '<div class="wb-match-head"><span class="wb-match-id">案例 #' + m.id + '</span>' +
+           '<span class="wb-match-tag">' + esc(m.sector || "") + '</span></div>';
+      if (sig) h += '<div class="wb-match-sig"><span class="wb-sig-dot"></span>' + esc(sig) + '</div>';
+      if (pts.length) {
+        h += '<ul class="wb-match-pts">';
+        pts.forEach(p => { h += '<li>' + esc(p) + '</li>'; });
+        h += '</ul>';
+      }
+      if (m.result_after) h += '<div class="wb-match-res"><span class="wb-res-ico">✓</span>结果：' + esc(m.result_after) + '</div>';
+      h += '</div>';
     });
     h += "</div>";
   } else {
