@@ -1,4 +1,4 @@
-/* 诊断台 · 销售工作台（前端只读分析层，数据源为 snapshot.json，不调用任何后端写入）
+/* 诊断台 · 客户经营（销售工作台子模块；前端只读分析层，数据源为 snapshot.json，不调用任何后端写入）
  *
  * 设计原则（与诊断引擎隔离）：
  *  - 只读 SNAP.customers / SNAP.reports / SNAP.cases，不修改任何数据库。
@@ -162,14 +162,14 @@ function renderWorkbench() {
   const coveredSectors = new Set(cases.filter(x => x.referenceable).map(x => x.sector));
   const coverN = [...sectors].filter(s => coveredSectors.has(s)).length;
 
-  // 预警列表（按分数升序）
-  const warns = rows.filter(r => r.h.warnings.length).sort((a, b) => (a.h.score || 999) - (b.h.score || 999));
+  // 预警列表（仅预警档，按分数升序，作为全站唯一重点区）
+  const warns = rows.filter(r => r.h.tier === "预警").sort((a, b) => (a.h.score || 999) - (b.h.score || 999));
 
   // 客户下拉（打法推荐）
   const selOpts = rows.map(r => '<option value="' + r.c.id + '">' + esc(r.c.name) + "（" + esc(r.c.sector) + "）</option>").join("");
 
   let h = "";
-  h += '<div class="wb-head"><h2>销售工作台</h2><span class="wb-sub">面向平台商业化销售的客户经营看板 · 只读分析</span></div>';
+  h += '<div class="wb-head"><h2>客户经营</h2><span class="wb-sub">销售工作台 · 客户经营看板（只读分析）</span></div>';
 
   // KPI 卡
   h += '<div class="wb-kpis">';
@@ -201,45 +201,71 @@ function renderWorkbench() {
   }
   h += "</div>";
 
-  // 客户健康分总表
-  h += '<div class="card" style="margin-top:14px;"><h3 class="wb-h3">客户健康分</h3><div class="table-wrap"><table class="daily" id="wbHealthTable"><thead><tr>' +
-       "<th>客户</th><th>行业 / 赛道</th><th>健康分</th><th>分群</th><th>系统状态</th><th>主要风险</th></tr></thead><tbody>";
-  rows.slice().sort((a, b) => (a.h.score == null ? 999 : a.h.score) - (b.h.score == null ? 999 : b.h.score)).forEach(r => {
-    h += "<tr onclick=\"wbSelect(" + r.c.id + ")\" style='cursor:pointer;'>" +
-         "<td>" + esc(r.c.name) + "</td>" +
-         "<td>" + esc(r.c.industry) + " / " + esc(r.c.sector) + "</td>" +
-         "<td>" + (r.h.score == null ? "—" : r.h.score) + "</td>" +
-         "<td>" + wbHealthBadge(r.h.score, r.h.tier) + "</td>" +
-         "<td>" + esc(r.rep ? r.rep.overall_status : "未诊断") + "</td>" +
-         "<td>" + (r.h.warnings[0] ? esc(r.h.warnings[0]) : "<span class='wb-muted'>无</span>") + "</td></tr>";
-  });
-  h += "</tbody></table></div></div>";
+  // 客户分群概览（3 卡，不列名单，点开才展开该群客户）
+  h += '<div class="card" style="margin-top:14px;"><h3 class="wb-h3">客户分群概览</h3><div class="wb-tiers">' +
+       wbTierCard("健康", healthyN, rows) +
+       wbTierCard("关注", watchN, rows) +
+       wbTierCard("预警", warnN, rows) +
+       '</div><div id="wbTierExpand"></div></div>';
 
   // 打法推荐
   h += '<div class="card" style="margin-top:14px;"><h3 class="wb-h3">打法推荐</h3>' +
        '<div class="wb-selrow"><label>选择客户：</label><select id="wbCustSel" onchange="wbSelect(parseInt(this.value))">' + selOpts + "</select></div>" +
        '<div id="wbPlaybook"></div></div>';
 
-  // 覆盖度自检
+  // 覆盖度自检（按赛道汇总，仅列缺口客户，不堆 51 个名字）
   const cov = buildCoverage(rows, cases);
   const gaps = cov.filter(x => x.gap);
-  h += '<div class="card" style="margin-top:14px;"><h3 class="wb-h3">覆盖度自检（' + gaps.length + " 个缺口）</h3>" +
-       '<p class="wb-note">诊断覆盖=已生成报告；案例覆盖=该赛道在案例库中有可引用打法；任一缺失即计为缺口。</p>' +
-       '<div class="table-wrap"><table class="daily"><thead><tr><th>客户</th><th>赛道</th><th>诊断覆盖</th><th>异常预警</th><th>案例覆盖</th><th>缺口</th></tr></thead><tbody>';
-  cov.forEach(x => {
-    h += "<tr><td>" + esc(x.c.name) + "</td><td>" + esc(x.c.sector) + "</td>" +
-         "<td>" + wbTick(x.hasReport) + "</td>" +
-         "<td>" + wbTick(x.hasAnom) + "</td>" +
-         "<td>" + wbTick(x.hasCase) + "</td>" +
-         "<td>" + (x.gap ? "<span class='wb-chip wb-chip-bad'>" + (x.hasReport ? "缺案例覆盖" : "缺诊断") + "</span>" : "<span class='wb-muted'>无</span>") + "</td></tr>";
+  const secCov = {};
+  rows.forEach(r => {
+    const s = r.c.sector;
+    if (!secCov[s]) secCov[s] = { n: 0, rep: 0, cas: 0 };
+    secCov[s].n++;
+    if (r.rep) secCov[s].rep++;
+    if (coveredSectors.has(s)) secCov[s].cas++;
   });
-  h += "</tbody></table></div></div>";
+  h += '<div class="card" style="margin-top:14px;"><h3 class="wb-h3">覆盖度自检（' + gaps.length + " 个缺口）</h3>" +
+       '<p class="wb-note">诊断覆盖=已生成报告；案例覆盖=该赛道在案例库有可引用打法。按赛道汇总如下，缺口客户单独列出。</p>' +
+       '<div class="table-wrap"><table class="daily"><thead><tr><th>赛道</th><th>客户数</th><th>已诊断</th><th>有案例覆盖</th></tr></thead><tbody>';
+  Object.keys(secCov).sort().forEach(s => {
+    const d = secCov[s];
+    h += "<tr><td>" + esc(s) + "</td><td>" + d.n + "</td><td>" + wbTick(d.n === d.rep) + " " + d.rep + "/" + d.n + "</td><td>" + wbTick(d.cas > 0) + " " + (d.cas > 0 ? "有" : "无") + "</td></tr>";
+  });
+  h += "</tbody></table></div>";
+  if (gaps.length) {
+    h += '<div class="wb-gaps"><b>缺口客户：</b>' + gaps.map(x => "<span class='wb-chip wb-chip-bad'>" + esc(x.c.name) + " · " + (x.hasReport ? "缺案例覆盖" : "缺诊断") + "</span>").join(" ") + "</div>";
+  }
+  h += "</div>";
 
   host.innerHTML = h;
 
   // 默认选中第一个预警客户，否则第一个
   const def = warns.length ? warns[0].c.id : rows[0].c.id;
   wbSelect(def);
+}
+
+function wbTierCard(tier, n, rows) {
+  const t = WB_TIER[tier] || WB_TIER["未知"];
+  const inTier = rows.filter(r => r.h.tier === tier);
+  const avgT = inTier.length ? Math.round(inTier.reduce((s, r) => s + (r.h.score || 0), 0) / inTier.length) : "—";
+  const pct = rows.length ? Math.round(n / rows.length * 100) : 0;
+  return '<div class="wb-tier" onclick="wbExpandTier(\'' + tier + '\')">' +
+    '<div class="wb-tier-n" style="color:' + t.color + '">' + n + '</div>' +
+    '<div class="wb-tier-l" style="color:' + t.color + '">' + tier + '</div>' +
+    '<div class="wb-tier-sub">均分 ' + avgT + ' · 占 ' + pct + '%</div>' +
+    '<div class="wb-tier-more">点击展开名单 ›</div></div>';
+}
+function wbExpandTier(tier) {
+  const box = document.getElementById("wbTierExpand");
+  if (!box) return;
+  const { rows } = buildWorkbenchData();
+  const inTier = rows.filter(r => r.h.tier === tier).sort((a, b) => (a.h.score == null ? 999 : a.h.score) - (b.h.score == null ? 999 : b.h.score));
+  let h = '<div class="wb-expand"><b>' + tier + ' 客户（' + inTier.length + '）</b><div class="wb-explist">';
+  inTier.forEach(r => {
+    h += '<span class="wb-expri" onclick="wbSelect(' + r.c.id + ')">' + esc(r.c.name) + ' <i>' + (r.h.score == null ? "—" : r.h.score) + '</i></span>';
+  });
+  h += "</div></div>";
+  box.innerHTML = h;
 }
 
 function wbKpi(label, val, color) {
