@@ -418,6 +418,44 @@ function normReportText(s){
   return s.replace(/open_cost/g,'开口成本').replace(/lead_cost/g,'留资成本')
           .replace(/feed/g,'信息流').replace(/search/g,'搜索');
 }
+function isPlaceholder(s){
+  if(!s) return true;
+  s=String(s).trim();
+  if(s===''||s==='{}'||s==='[]') return true;
+  if(s.indexOf('（待补')>=0||s.indexOf('待 LLM')>=0||s.indexOf('审核时补充')>=0) return true;
+  return false;
+}
+function cleanAnomalySig(sig){
+  if(!sig) return '';
+  if(typeof sig==='object'){
+    const loc=sig.location||'', reason=sig.reason||'';
+    return (loc||reason)?(loc+'：'+reason):JSON.stringify(sig);
+  }
+  let s=String(sig).trim();
+  // 形如 "{...}" 的 Python/JSON 字典字符串 -> 提取 location/reason
+  if(s.startsWith('{') && s.indexOf(':')>0){
+    try{
+      const d=JSON.parse(s.replace(/'/g,'"'));
+      if(d&&typeof d==='object'){
+        const loc=d.location||'', reason=d.reason||'';
+        if(loc||reason) return (loc+'：'+reason);
+      }
+    }catch(e){}
+    // 退路：截断/畸形字典串，用正则抽 location / reason
+    const ml=s.match(/['"]location['"]\s*:\s*['"]([^'"]*)/);
+    const mr=s.match(/['"]reason['"]\s*:\s*['"]([^'"]*)/);
+    if(ml||mr){
+      const loc=ml?ml[1]:'', reason=mr?mr[1]:'';
+      if(loc||reason) return (loc+'：'+reason);
+    }
+    s=s.replace(/[{}]/g,'').replace(/'/g,'').replace(/"/g,'');
+  }
+  return s;
+}
+function clip(s,n){
+  s=String(s||'');
+  return s.length>n? s.slice(0,n)+'…' : s;
+}
 function renderReportModal(report, c){
   const ch=(report&&report.chapters)||{};
   const cover=ch['1_封面']||{}, concl=ch['2_核心结论']||{}, metrics=ch['3_指标与趋势']||{},
@@ -447,7 +485,17 @@ function renderReportModal(report, c){
   const top3detail = Array.isArray(anomalies.top3_detail) ? anomalies.top3_detail : [];
   h+='<div class="chapter"><h4>⑤ 异常与原因</h4>'+(top3detail.length?top3detail.map(x=>'<div class="item"><b>'+x.rank+' '+esc(normReportText(x.location||''))+'</b><p>'+esc(normReportText(x.reason||''))+'</p>'+((x.evidence||[]).length?'<ul>'+x.evidence.map(e=>'<li>'+esc(normReportText(e))+'</li>').join('')+'</ul>':'')+'</div>').join(''):'<p class="muted">无明显异常</p>')+'</div>';
   const caseRefs=(cases.refs&&cases.refs.length)?cases.refs:(cases.cases||[]);
-  h+='<div class="chapter"><h4>⑥ 案例参考</h4>'+(caseRefs.length?caseRefs.map(x=>'<div class="item"><b>案例 #'+(x.case_id!=null?x.case_id:'')+'</b>'+(x.sector?' <span class="tag">'+esc(x.sector)+'</span>':'')+(x.anomaly_signature?'<p>异常：'+esc(normReportText(x.anomaly_signature))+'</p>':'')+(x.action_taken?'<p>打法：'+esc(normReportText(x.action_taken))+'</p>':'')+(x.similarity_points?'<p class="muted">相似点：'+esc(normReportText(x.similarity_points))+'</p>':'')+'</div>').join(''):'<p class="muted">'+esc(cases.note||'暂无可引用案例')+'</p>')+'</div>';
+  h+='<div class="chapter"><h4>⑥ 案例参考</h4>'+(caseRefs.length?caseRefs.map(x=>{
+    const sig=cleanAnomalySig(x.anomaly_signature);
+    const act=isPlaceholder(x.action_taken)?'':normReportText(x.action_taken);
+    const sim=isPlaceholder(x.similarity_points)?'':clip(normReportText(x.similarity_points),220);
+    return '<div class="item"><b>案例 #'+(x.case_id!=null?x.case_id:'')+'</b>'
+      +(x.sector?' <span class="tag">'+esc(x.sector)+'</span>':'')
+      +(sig?'<p>异常：'+esc(sig)+'</p>':'')
+      +(act?'<p>打法：'+esc(act)+'</p>':'')
+      +(sim?'<p class="muted">相似点：'+esc(sim)+'</p>':'')
+      +'</div>';
+  }).join(''):'<p class="muted">'+esc(cases.note||'暂无可引用案例')+'</p>')+'</div>';
   h+='<div class="chapter"><h4>⑦ 优化建议</h4>'+((suggests||[]).length?suggests.map(x=>'<div class="item">'+(x.priority?'<span class="ptag '+esc(x.priority)+'">'+esc(x.priority)+'</span>':'')+'<p>'+esc(normReportText(x.text||''))+'</p>'+(x.basis?'<p class="muted">依据：'+esc(normReportText(x.basis||''))+'</p>':'')+'</div>').join(''):'<p class="muted">正常周无待办建议</p>')+'</div>';
   h+='<div class="chapter"><h4>⑧ 行动计划</h4>'+((actions||[]).length?'<table><thead><tr><th>行动</th><th>日期</th><th>预期指标</th></tr></thead><tbody>'+actions.map(x=>'<tr><td>'+esc(x.action||'')+'</td><td>'+esc(x.date||'')+'</td><td>'+esc(x.expect_metric||'')+'</td></tr>').join('')+'</tbody></table>':'<p class="muted">无行动计划</p>')
     +'<p class="muted" style="margin-top:8px;">LLM 调用 '+esc(report.llm_calls!=null?report.llm_calls:'-')+' 次 · 成本 ¥'+esc(report.llm_cost_yuan!=null?report.llm_cost_yuan:'-')+'</p></div>';
